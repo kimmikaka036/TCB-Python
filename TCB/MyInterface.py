@@ -49,17 +49,8 @@ class AdapterVerification(implements(VerifyInterface)):
         img2 = net.forward(unknown_img)
 
         d = img1 - img2
-        return "{:0.3f}".format(np.dot(d, d))
-  
-class VerificationManager: 
-    def execute(self,unknown_encoding_1,unknown_encoding_2):
-        alignment = AdapterAlignment() 
-        result_1= alignment.execute(unknown_encoding_1) 
-        result_2= alignment.execute(unknown_encoding_2) 
+        return "{:0.3f}".format(np.dot(d, d)) 
 
-        verify = AdapterVerification()
-        result = verify.execute(result_1,result_2)
-        return result 
 
 class ModuleBCommand: 
     def main():
@@ -69,8 +60,7 @@ class ModuleBCommand:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, PORT))
         s.listen(100) 
-        conn, addr = s.accept() 
-        verify = VerificationManager() 
+        conn, addr = s.accept()  
         while True: 
             print('Connected by', addr)
             data = conn.recv(LIMIT) 
@@ -79,24 +69,32 @@ class ModuleBCommand:
             data = data.decode('utf-8')
             if(data.startswith("#1#")):
                 unknown_encoding_1 = data
+                unknown_encoding_1 = unknown_encoding_1.replace("#1#", "") 
+
+                alignment = AdapterAlignment() 
+                result_1= alignment.execute(unknown_encoding_1) 
+
                 data ='#1#'
                 conn.send(data.encode())  
-                unknown_encoding_2 = None
             elif(data.startswith("#2#")):
                 unknown_encoding_2 = data 
+                unknown_encoding_2= unknown_encoding_2.replace("#2#", "")
+  
+                alignment = AdapterAlignment() 
+                result_2= alignment.execute(unknown_encoding_2) 
+
                 data ='#2#'
                 conn.send(data.encode()) 
-            elif(data.startswith("#3#")): 
-                print(unknown_encoding_1)
-                print(unknown_encoding_2)
-                unknown_encoding_1 = unknown_encoding_1.replace("#1#", "")
-                unknown_encoding_2= unknown_encoding_2.replace("#2#", "")
-                # if(not unknown_encoding_1  and not unknown_encoding_2): 
-                result = verify.execute(unknown_encoding_1,unknown_encoding_2) 
+            elif(data.startswith("#3#")):  
+ 
+                verify = AdapterVerification()
+                result = verify.execute(result_1,result_2)
+ 
                 conn.send(result.encode()) 
             else:
                 unknown_encoding_1 = None 
                 unknown_encoding_2 = None
+                conn.close()
 
             
         # conn.close()
