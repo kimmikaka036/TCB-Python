@@ -7,9 +7,12 @@ import argparse
 import dlib
 import os
 import base64
+import asyncore 
+
 import numpy as np 
 from io import BytesIO
 from PIL import Image
+
 
 
 np.set_printoptions(precision=2)
@@ -50,58 +53,148 @@ class AdapterVerification(implements(VerifyInterface)):
 
         d = img1 - img2
         return "{:0.3f}".format(np.dot(d, d))
-  
-class VerificationManager: 
-    def execute(self,unknown_encoding_1,unknown_encoding_2):
-        alignment = AdapterAlignment() 
-        result_1= alignment.execute(unknown_encoding_1) 
-        result_2= alignment.execute(unknown_encoding_2) 
-
-        verify = AdapterVerification()
-        result = verify.execute(result_1,result_2)
-        return result 
+ 
 
 class ModuleBCommand: 
     def main():
-        HOST = ''              
-        PORT = 4000       
-        LIMIT = 100000000
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((HOST, PORT))
-        s.listen(100) 
-        conn, addr = s.accept() 
-        verify = VerificationManager() 
-        while True: 
-            print('Connected by', addr)
-            data = conn.recv(LIMIT) 
-            if not data:
-                break
-            data = data.decode('utf-8')
-            if(data.startswith("#1#")):
-                unknown_encoding_1 = data
-                data ='#1#'
-                conn.send(data.encode())  
-                unknown_encoding_2 = None
-            elif(data.startswith("#2#")):
-                unknown_encoding_2 = data 
-                data ='#2#'
-                conn.send(data.encode()) 
-            elif(data.startswith("#3#")): 
-                print(unknown_encoding_1)
-                print(unknown_encoding_2)
-                unknown_encoding_1 = unknown_encoding_1.replace("#1#", "")
-                unknown_encoding_2= unknown_encoding_2.replace("#2#", "")
-                # if(not unknown_encoding_1  and not unknown_encoding_2): 
-                result = verify.execute(unknown_encoding_1,unknown_encoding_2) 
-                conn.send(result.encode()) 
-            else:
-                unknown_encoding_1 = None 
-                unknown_encoding_2 = None
+            HOST = ''              
+            PORT = 4000       
+            LIMIT = 100000
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind((HOST, PORT))
+            s.listen(1000) 
+            conn, addr = s.accept()  
 
-            
-        # conn.close()
+            verify = AdapterVerification()
+            alignment = AdapterAlignment() 
+
+            while True: 
+                print('Connected by', addr)
+
+                data = conn.recv(LIMIT)  
+                if data:  
+                        data = data.decode('utf-8')
+                        source =data.split('|')
+                        encode_1 = source[0]
+                        encode_2 = source[1]
+                        
+                        verify = AdapterVerification()
+                        alignment = AdapterAlignment() 
+
+                        result_1= alignment.execute(encode_1) 
+                        result_2= alignment.execute(encode_2) 
+                        result = verify.execute(result_1,result_2)
+
+                        if(float(result) < 1.00):
+                            result = 'true '+result
+                        else:
+                            result = 'false '+result
+
+                        conn.send(data.encode())
+                        
+                        del unknown_encoding_1  
+                        del result 
+                        del unknown_encoding_2  
+                        del result_1
+                        del result_2
+                        del data
+
+                # if(data.startswith("#1#")):
+                #     data = data.decode('utf-8')
+                #     unknown_encoding_1 = data 
+                #     unknown_encoding_1 = unknown_encoding_1.replace("#1#", "") 
+                #     data ='#1#'
+    
+                #     result_1= alignment.execute(unknown_encoding_1) 
+
+                #     conn.send(data.encode())  
+                    
+                #     del unknown_encoding_1  
+                #     del data
+
+                # elif(data.startswith("#2#")):
+                #     data = data.decode('utf-8')
+                #     unknown_encoding_2 = data 
+                #     unknown_encoding_2= unknown_encoding_2.replace("#2#", "")  
+                    
+                #     result_2= alignment.execute(unknown_encoding_2) 
+                #     result = verify.execute(result_1,result_2)
+                    
+                #     if(float(result) < 1.00):
+                #         result = 'true '+result
+                #     else:
+                #         result = 'false '+result
+    
+                #     conn.send(result.encode())  
+
+                #     del result 
+                #     del unknown_encoding_2  
+                #     del result_2
+                #     del data
+                
+                
+          
+
+       
         
 
 
     if __name__ == '__main__': 
         main()    
+
+
+
+   
+
+# class EchoHandler(asyncore.dispatcher_with_send): 
+
+  
+     
+#     def handle_read(self): 
+#         data = self.recv(60000) 
+#         if data:  
+#             data = data.decode('utf-8')
+#             source =data.split('|')
+#             encode_1 = source[0]
+#             encode_2 = source[1]
+            
+#             verify = AdapterVerification()
+#             alignment = AdapterAlignment() 
+
+#             result_1= alignment.execute(encode_1) 
+#             result_2= alignment.execute(encode_2) 
+#             result = verify.execute(result_1,result_2)
+
+#             if(float(result) < 1.00):
+#                 result = 'true '+result
+#             else:
+#                 result = 'false '+result
+    
+#             #self.send(data)
+
+#             self.send(result.encode())  
+
+#     def handle_close(self):
+#         print('handle_close') 
+#         self.close()
+
+
+# class EchoServer(asyncore.dispatcher):
+
+#     def __init__(self, host, port): 
+#         asyncore.dispatcher.__init__(self)
+#         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+#         self.set_reuse_addr()
+#         self.bind((host, port))
+#         self.listen(1)   
+
+#     def handle_accept(self):
+#         pair = self.accept()
+#         if pair is not None:
+#             sock, addr = pair 
+#             print 'Incoming connection from %s' % repr(addr)
+#             handler = EchoHandler(sock)
+          
+
+# server = EchoServer('', 4000)
+# asyncore.loop()
